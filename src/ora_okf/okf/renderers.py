@@ -91,6 +91,10 @@ class RenderConfig:
         include_data: Whether table row counts and sample rows are rendered.
         sample_rows: The row cap recorded in ``log.md`` for reference.
         generator: The tool name recorded in ``index.md``.
+        include_timestamp: Whether the extraction timestamp is written into
+            concept frontmatter and ``log.md``. Turning it off makes a bundle
+            that only changes when the schema changes, so a committed bundle
+            does not show up as modified on every rerun.
     """
 
     schema_label: str
@@ -99,6 +103,7 @@ class RenderConfig:
     include_data: bool = False
     sample_rows: int = 5
     generator: str = "ora-okf"
+    include_timestamp: bool = True
 
 
 class ConceptPlacement(NamedTuple):
@@ -144,14 +149,16 @@ def _base_frontmatter(
 ) -> dict[str, object]:
     """Build the frontmatter fields common to every concept."""
     kind = _KIND_LABELS[object_type]
-    return {
+    frontmatter: dict[str, object] = {
         "type": f"{config.dbms_label} {kind}",
         "title": name,
         "description": description,
         "resource": _resource(name, config),
         "tags": [_tag_for(object_type, obj)],
-        "timestamp": generated_at,
     }
+    if config.include_timestamp:
+        frontmatter["timestamp"] = generated_at
+    return frontmatter
 
 
 def _sql_escape(text: str) -> str:
@@ -256,13 +263,14 @@ def render_index(model: SchemaModel, config: RenderConfig) -> str:
 def render_log(model: SchemaModel, config: RenderConfig) -> str:
     """Render the bundle's root ``log.md``."""
     rows = [
-        ["timestamp", model.generated_at],
         ["dbms", config.dbms_label],
         ["database_version", model.database_version],
         ["concepts", str(model.object_count())],
         ["include_data", "YES" if config.include_data else "NO"],
         ["sample_rows", str(config.sample_rows)],
     ]
+    if config.include_timestamp:
+        rows.insert(0, ["timestamp", model.generated_at])
     content = join_blocks("# Log", render_table(["Field", "Value"], rows))
     return content.strip() + "\n"
 
@@ -275,8 +283,9 @@ def render_schema_overview(model: SchemaModel, config: RenderConfig) -> OkfConce
         "description": f"Schema {config.schema_label}.",
         "resource": config.schema_label,
         "tags": ["schema"],
-        "timestamp": model.generated_at,
     }
+    if config.include_timestamp:
+        frontmatter["timestamp"] = model.generated_at
     concept = OkfConcept(frontmatter=frontmatter)
     counts = _category_counts(model)
     rows = [[category, str(count)] for category, count in sorted(counts.items())]

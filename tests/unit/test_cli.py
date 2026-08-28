@@ -120,9 +120,16 @@ class TestOptionsFromArgs:
         options = _options_from_args(args)
         assert options.fail_on_leak is False
 
+    def test_no_timestamp_maps_to_include_timestamp_false(self, tmp_path):
+        parser = build_parser()
+        args = parser.parse_args(["--okf-dir", str(tmp_path), "--no-timestamp"])
+        options = _options_from_args(args)
+        assert options.include_timestamp is False
+
     def test_defaults_are_true(self, tmp_path):
         parser = build_parser()
         args = parser.parse_args(["--okf-dir", str(tmp_path)])
         options = _options_from_args(args)
         assert options.qualify_resources is True
         assert options.fail_on_leak is True
+        assert options.include_timestamp is True
