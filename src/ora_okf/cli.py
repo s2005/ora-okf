@@ -38,6 +38,10 @@ examples:
   # Include row counts and a bounded sample of rows
   ora-okf --env-file oracle.env --okf-dir out/okf --include-data --sample-rows 10
 
+  # Refresh a bundle committed to a repository: no timestamp, so an unchanged
+  # schema produces no diff
+  ora-okf --env-file oracle.env --okf-dir docs/okf --mapping schema-map.yaml --no-timestamp
+
 exit codes:
   0  success
   1  configuration, connection, extraction, or write error
@@ -92,6 +96,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-schema-qualifier",
         action="store_true",
         help="Render 'resource:' values as a bare object name instead of '<SCHEMA>.<OBJECT>'.",
+    )
+    output.add_argument(
+        "--no-timestamp",
+        action="store_true",
+        help="Omit the extraction timestamp from concept frontmatter and log.md, so rerunning an "
+        "unchanged schema produces byte-identical files. Use it when the bundle is committed to a "
+        "repository, to keep CI/CD from seeing a change on every export.",
     )
 
     renaming = parser.add_argument_group("schema renaming")
@@ -179,7 +190,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 def _options_from_args(args: argparse.Namespace) -> ExportOptions:
     """Translate parsed arguments into export options.
 
-    The two negative flags are inverted exactly once, here, so no code past this
+    The negative flags are inverted exactly once, here, so no code past this
     point has to reason about double negatives.
     """
     return ExportOptions(
@@ -190,6 +201,7 @@ def _options_from_args(args: argparse.Namespace) -> ExportOptions:
         include_data=args.include_data,
         sample_rows=args.sample_rows,
         qualify_resources=not args.no_schema_qualifier,
+        include_timestamp=not args.no_timestamp,
         fail_on_leak=not args.no_fail_on_leak,
         dry_run=args.dry_run,
     )

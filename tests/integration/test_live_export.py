@@ -12,6 +12,7 @@ no database.
 
 from __future__ import annotations
 
+import dataclasses
 import os
 from pathlib import Path
 
@@ -115,6 +116,14 @@ class TestLiveRenaming:
         second = _bundle_text(run_export(options).okf_dir)
         assert first == second
 
+    def test_rerun_without_timestamps_is_byte_identical(self, options: ExportOptions) -> None:
+        """What a committed bundle needs: no diff unless the schema itself changed."""
+        untimed = dataclasses.replace(options, include_timestamp=False)
+        first = _bundle_bytes(run_export(untimed).okf_dir)
+        second = _bundle_bytes(run_export(untimed).okf_dir)
+        assert first == second
+        assert all(b"timestamp" not in content for content in first.values())
+
 
 class TestLiveMappingPolicies:
     def test_error_policy_names_the_unmapped_schema(self, options: ExportOptions, tmp_path: Path) -> None:
@@ -138,6 +147,11 @@ class TestLiveMappingPolicies:
                     mapping_file=mapping_file,
                 )
             )
+
+
+def _bundle_bytes(okf_dir: Path) -> dict[str, bytes]:
+    """Return every bundle file's raw bytes, keyed by bundle-relative path."""
+    return {path.relative_to(okf_dir).as_posix(): path.read_bytes() for path in sorted(okf_dir.rglob("*.md"))}
 
 
 def _bundle_text(okf_dir: Path) -> dict[str, list[str]]:

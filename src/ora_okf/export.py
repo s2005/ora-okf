@@ -50,6 +50,9 @@ class ExportOptions:
         include_data: Add row counts and bounded row samples.
         sample_rows: Maximum sample rows per table; 0 keeps counts only.
         qualify_resources: Prefix ``resource:`` values with the schema label.
+        include_timestamp: Write the extraction timestamp into the bundle.
+            Off makes a rerun byte-identical unless the schema itself changed,
+            which is what a bundle committed to a repository needs.
         fail_on_leak: Fail when a renamed physical name survives into the bundle.
         dry_run: Render in memory and report, writing nothing.
     """
@@ -61,6 +64,7 @@ class ExportOptions:
     include_data: bool = False
     sample_rows: int = 5
     qualify_resources: bool = True
+    include_timestamp: bool = True
     fail_on_leak: bool = True
     dry_run: bool = False
 
@@ -136,6 +140,7 @@ def run_export(options: ExportOptions) -> ExportResult:
         qualify_resources=options.qualify_resources,
         include_data=options.include_data,
         sample_rows=options.sample_rows,
+        include_timestamp=options.include_timestamp,
     )
 
     files = render_bundle(renamed, config)

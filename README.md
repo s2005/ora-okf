@@ -67,6 +67,7 @@ Every option is named; there are no positional arguments.
 | `--schema NAME` | `SCHEMA`, then `DB_USER` | Schema to extract. |
 | `--mapping PATH` | — | YAML or JSON schema mapping. Without it, nothing is renamed. |
 | `--no-schema-qualifier` | off | Render `resource:` values as a bare object name instead of `<SCHEMA>.<OBJECT>`. |
+| `--no-timestamp` | off | Omit the extraction timestamp from concept frontmatter and `log.md`, so an unchanged schema re-exports byte-identically. Use it for a bundle committed to a repository. |
 | `--no-fail-on-leak` | off | Report, rather than fail, when a renamed name survives into the bundle. |
 | `--include-data` | off | Add a row count and a bounded row sample to each table concept. Needs `SELECT` on the tables. |
 | `--sample-rows N` | `5` | Maximum sample rows per table. `0` keeps row counts and omits the samples. |
@@ -197,6 +198,15 @@ The bundle is `markdownlint`-clean, and rendering the same extracted model twice
 Rendering the same model twice produces identical bytes. Everything is sorted, nothing iterates a set, and the only timestamp in the output is `generated_at`, stamped once at extraction and carried through as data.
 
 Two *pipeline* runs differ in exactly that timestamp. When comparing bundles from separate runs, filter the `timestamp:` lines; any other difference is a real change.
+
+### Committing a bundle to a repository
+
+`--no-timestamp` drops the timestamp from every concept's frontmatter and from `log.md`, so two runs against an unchanged schema write byte-identical files and no comparison filter is needed. Without it, a CI/CD job that regenerates a committed bundle sees a diff on every run, and a real schema change is indistinguishable from a clock tick.
+
+```bash
+ora-okf --env-file oracle.env --mapping schema-map.yaml --okf-dir docs/okf --no-timestamp
+git diff --quiet docs/okf || echo "the schema changed"
+```
 
 One exception: `--include-data` samples rows with `FETCH FIRST n ROWS ONLY` and no `ORDER BY`, because there is no column guaranteed to exist to order by. SQL promises no row order without one, so an unchanged database can yield different sample rows between runs. Do not use an `--include-data` bundle as a byte-comparison baseline; use a structure-only one.
 

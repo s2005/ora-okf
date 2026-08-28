@@ -72,6 +72,37 @@ class TestResourceQualification:
             assert not str(resource).startswith(f"{SCHEMA_LABEL}."), f"{path} leaked the schema label"
 
 
+class TestTimestamp:
+    def test_timestamp_is_present_by_default(self):
+        files = _render()
+        assert parse_frontmatter(files["tables/orders.md"])["timestamp"]
+        assert parse_frontmatter(files["schema.md"])["timestamp"]
+        assert "| timestamp |" in files["log.md"]
+
+    def test_no_timestamp_removes_it_from_every_file(self):
+        files = _render(include_timestamp=False)
+        for path, content in files.items():
+            assert "timestamp" not in content, f"{path} still carries a timestamp"
+
+    def test_only_the_timestamp_differs_between_two_extractions(self):
+        """Two runs of an unchanged schema render identically without timestamps."""
+        first = _render(include_timestamp=False)
+        later = _render(
+            model=dataclasses.replace(build_sample_model(), generated_at="2030-06-15 12:34:56 UTC"),
+            include_timestamp=False,
+        )
+        assert first == later
+
+    def test_concepts_still_conform_without_a_timestamp(self):
+        files = _render(include_timestamp=False)
+        for path, content in files.items():
+            if path in ("index.md", "log.md"):
+                continue
+            frontmatter = parse_frontmatter(content)
+            assert frontmatter is not None, f"{path} has no parseable frontmatter"
+            assert frontmatter.get("type"), f"{path} has an empty type"
+
+
 class TestTableConcept:
     def test_primary_key_lists_columns_in_order(self):
         files = _render()
