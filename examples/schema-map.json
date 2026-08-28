@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "unmapped": "keep",
+  "redacted_name": "EXTERNAL",
+  "schemas": {
+    "APP_PROD_OWNER": "APP",
+    "REF_DATA_PROD": "REF"
+  }
+}

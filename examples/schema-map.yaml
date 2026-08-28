@@ -1,0 +1,31 @@
+# Schema mapping for ora-okf.
+#
+# Maps a physical Oracle schema name to the name the exported bundle uses.
+# This file controls renaming only - connection details live in the .env file.
+
+version: 1
+
+# What to do with a schema that the extracted objects reference but that has no
+# entry below:
+#
+#   keep    leave the physical name in place (default). The post-export audit
+#           still reports it, so nothing slips through unnoticed.
+#   redact  replace it with `redacted_name`, collapsing every unmapped schema
+#           onto one placeholder.
+#   error   refuse to export until every referenced schema is mapped. Use this
+#           when the bundle is destined for a public repository.
+unmapped: error
+
+# Substituted when `unmapped: redact` is in effect.
+redacted_name: EXTERNAL
+
+# Physical schema name -> the name published in the bundle.
+#
+# Keys are matched case-insensitively. A published name is substituted into
+# COMMENT ON statements, resource identifiers, and PL/SQL source, so it must be
+# a legal unquoted Oracle identifier: a letter followed by letters, digits, or
+# _ $ #.
+schemas:
+  APP_PROD_OWNER: APP
+  APP_PROD_STAGING: STAGING
+  REF_DATA_PROD: REF

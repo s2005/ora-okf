@@ -1,0 +1,106 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ora-okf"
+version = "0.1.0"
+description = "Export an Oracle schema as an OKF (Open Knowledge Format) Markdown bundle, with schema-name remapping."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "s2005" }]
+keywords = ["oracle", "okf", "schema", "documentation", "markdown"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Database",
+    "Topic :: Documentation",
+]
+dependencies = [
+    "oracledb>=2.0.0",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "types-PyYAML>=6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/s2005/ora-okf"
+Issues = "https://github.com/s2005/ora-okf/issues"
+
+[project.scripts]
+ora-okf = "ora_okf.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ora_okf = ["py.typed"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C90", "S", "UP"]
+# S608 is disabled for the extractor only (see per-file-ignores): every data
+# dictionary query is a module-level constant and the sole interpolated value is
+# a driver-generated bind-placeholder list, never caller text.
+
+[tool.ruff.lint.per-file-ignores]
+# S101: pytest's assert is the whole point of a test.
+# S608: the rename tests build SQL-shaped strings as *fixture data* -- they are
+# text the renamer rewrites, never a query anything executes. There is no
+# database in the unit suite, so the injection check has nothing to protect.
+"tests/**" = ["S101", "S608"]
+"src/ora_okf/oracle/queries.py" = ["S608"]
+# S105: `KEY_PASSWORD = "DB_PASSWORD"` is the *name* of an environment variable,
+# not a password. The heuristic fires on the constant's name; renaming it to
+# dodge the check would make the module less readable than the exemption does.
+# No password literal appears anywhere in this package.
+"src/ora_okf/env.py" = ["S105"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+[tool.ruff.lint.isort]
+known-first-party = ["ora_okf"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_configs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "oracledb"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: tests that require a live Oracle database",
+]
+addopts = "-q"

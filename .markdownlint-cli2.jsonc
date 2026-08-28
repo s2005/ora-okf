@@ -1,0 +1,12 @@
+{
+  // Line length is not enforced: the bundle embeds SQL, view definitions and
+  // generated tables whose natural width is set by the database, not by us.
+  "config": {
+    "MD013": false,
+    "MD024": { "siblings_only": true },
+    "MD033": false,
+    "MD041": false
+  },
+  "globs": ["**/*.md"],
+  "ignores": ["**/node_modules/**", ".venv/**", "output/**"]
+}

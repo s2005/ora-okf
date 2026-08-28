@@ -1,0 +1,11 @@
+# Normalize to LF in the repository and on checkout.
+#
+# The bundle writer writes LF explicitly so a bundle generated on Windows and
+# one generated in CI compare byte-for-byte, and a test asserts it. Letting
+# core.autocrlf rewrite the sources would make that guarantee depend on the
+# contributor's git configuration.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
