@@ -116,11 +116,29 @@ export DB_PASSWORD='...'      # never echo it, never commit it
 
 | Key | Required | Meaning |
 | --- | --- | --- |
-| `DB_USER` | yes | Connecting account. |
+| `DB_USER` | yes | Connecting account. Required even when `--schema` names a different schema. |
 | `DB_PASSWORD` | yes | May come from the process environment instead. |
 | `DB_DSN` | one of | Full DSN, `host:port/service`. Wins over the parts below. |
 | `DB_HOST` / `DB_PORT` / `DB_SERVICE` | one of | Parts to assemble a DSN. `DB_PORT` defaults to 1521. |
 | `SCHEMA` | no | Schema to export. Defaults to `DB_USER`; `--schema` overrides both. |
+
+### Which value wins
+
+**The file beats the process environment, per key.** A non-empty value in the `--env-file` is used; the
+environment is read only when the key is missing from the file or set to an empty string -- which is exactly
+what makes a blank `DB_PASSWORD=` pick up an exported secret. So a shell prefix is silently ignored when the
+file sets the same key:
+
+```bash
+DB_USER=OTHER_ACCOUNT ora-okf --env-file oracle.env --okf-dir out/okf   # ignored; oracle.env sets DB_USER
+```
+
+Without `--env-file`, every key comes from the environment.
+
+**The schema resolves separately**, first non-empty of `--schema`, then `SCHEMA` (file, then environment),
+then `DB_USER` (file, then environment); the result is upper-cased and used as the object owner. `--schema`
+changes what is read, not who connects -- `DB_USER` is still required, and that account needs `SELECT` on the
+target schema, or the export writes an empty or partial bundle instead of failing.
 
 **Mapping**, YAML or JSON. Copy `assets/schema-map.yaml`.
 
@@ -167,7 +185,7 @@ Every option is named; there are no positional arguments.
 | --- | --- | --- |
 | `--okf-dir PATH` | required | Directory to write into. Must be empty or a previously exported bundle. Required even with `--validate-only`. |
 | `--env-file PATH` | - | `KEY=value` credentials file. Missing values fall back to the process environment. |
-| `--schema NAME` | `SCHEMA`, then `DB_USER` | Schema to extract. |
+| `--schema NAME` | `SCHEMA`, then `DB_USER` | Schema (object owner) to extract. Does not change the connecting account. |
 | `--mapping PATH` | - | YAML or JSON schema mapping. Without it, nothing is renamed. |
 | `--no-schema-qualifier` | off | Render `resource:` as a bare object name instead of `<SCHEMA>.<OBJECT>`. |
 | `--no-timestamp` | off | Omit the extraction timestamp from frontmatter and `log.md`. |

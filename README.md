@@ -81,7 +81,7 @@ Every option is named; there are no positional arguments.
 | ------ | ------- | ----------- |
 | `--okf-dir PATH` | required | Directory to write the bundle into. Must be empty or a previously exported bundle. |
 | `--env-file PATH` | — | `KEY=value` credentials file. Missing values fall back to the process environment. |
-| `--schema NAME` | `SCHEMA`, then `DB_USER` | Schema to extract. |
+| `--schema NAME` | `SCHEMA`, then `DB_USER` | Schema (object owner) to extract. Does not change the connecting account; see [the credentials file](#the-credentials-file). |
 | `--mapping PATH` | — | YAML or JSON schema mapping. Without it, nothing is renamed. |
 | `--no-schema-qualifier` | off | Render `resource:` values as a bare object name instead of `<SCHEMA>.<OBJECT>`. |
 | `--no-timestamp` | off | Omit the extraction timestamp from concept frontmatter and `log.md`, so an unchanged schema re-exports byte-identically. Use it for a bundle committed to a repository. |
@@ -95,6 +95,39 @@ Every option is named; there are no positional arguments.
 | `--version` | — | Print the version and exit. |
 
 Exit codes: `0` success, `1` configuration/connection/extraction/write error, `2` invalid command line, `3` a renamed physical schema name survived into the bundle.
+
+## The credentials file
+
+`--env-file` points at a `KEY=value` file (see `.env.example`). Every key is also readable from the process environment, so nothing has to be written to disk.
+
+| Key | Required | Meaning |
+| --- | -------- | ------- |
+| `DB_USER` | yes | The account to authenticate as. Required even when `--schema` names a different schema. |
+| `DB_PASSWORD` | yes | The account password. Never reaches a log line, an exception, or a `repr`. |
+| `DB_DSN` | one of | Easy Connect descriptor, `host:port/service`. A `jdbc:oracle:thin:@` prefix is stripped. Wins over the parts below. |
+| `DB_HOST` / `DB_PORT` / `DB_SERVICE` | one of | Assembled into a DSN when `DB_DSN` is absent. `DB_PORT` defaults to `1521`. |
+| `SCHEMA` | no | Schema to extract. Defaults to `DB_USER`. |
+
+### Where each value comes from
+
+**The file wins over the process environment.** For every key, a non-empty value in the `--env-file` is used as-is; the environment is consulted only when the key is absent from the file or set to an empty string. That is what makes a blank `DB_PASSWORD=` in a checked-in file work -- the exported secret fills the hole.
+
+The corollary is easy to trip over: a shell prefix does *not* override a file that already sets the same key.
+
+```bash
+# ignored, because oracle.env sets DB_USER
+DB_USER=OTHER_ACCOUNT ora-okf --env-file oracle.env --okf-dir out/okf
+```
+
+Omitting `--env-file` entirely reads every key from the environment.
+
+**The schema is resolved separately**, taking the first non-empty of:
+
+1. `--schema NAME` on the command line
+2. `SCHEMA` -- from the file, then from the environment
+3. `DB_USER` -- from the file, then from the environment
+
+The result is upper-cased and used as the object owner every extraction query filters on. `--schema` changes what is read, never who connects: `DB_USER` stays required, and that account needs `SELECT` on the target schema's objects -- without those grants the export succeeds and produces an empty or partial bundle rather than an error.
 
 ## The mapping file
 
