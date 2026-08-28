@@ -34,7 +34,7 @@ installing anything on someone's machine.
 | winget | `winget install --id=astral-sh.uv -e` |
 | A working pip | `pip install --user uv` |
 
-The installer writes to `~/.local/bin` and edits shell profiles - it does not change the shell that is already
+The installer writes to `$HOME/.local/bin` and edits shell profiles - it does not change the shell that is already
 running. Put it on PATH for the current session rather than telling the user to open a new terminal:
 
 ```bash

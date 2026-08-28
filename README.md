@@ -8,15 +8,26 @@ Renaming is not a search-and-replace over the output. It is applied to the extra
 
 ## Install
 
+The project is not on PyPI. Install it from the git URL, or run it without installing anything at all:
+
 ```bash
-pip install -e .
+uvx --from "git+https://github.com/s2005/ora-okf.git@v0.0.1" ora-okf --help
 ```
 
-Or, for development:
+`uv` fetches a suitable Python, builds the package into a cached ephemeral environment, runs it, and leaves nothing in the working directory -- no clone, no virtualenv to manage. Drop `@v0.0.1` to run the head of `main` instead.
+
+For a command that stays on the PATH:
 
 ```bash
-uv venv
-uv pip install -e ".[dev]"
+uv tool install "git+https://github.com/s2005/ora-okf.git@v0.0.1"
+```
+
+From a clone, or for development:
+
+```bash
+pip install -e .
+
+uv venv && uv pip install -e ".[dev]"
 ```
 
 Requires Python 3.10+ and Oracle 19c or later. Connections use python-oracledb in thin mode, so no Oracle Instant Client installation is needed.
@@ -41,10 +52,16 @@ schemas:
   REF_DATA_PROD: REF
 ```
 
-Then:
+Then, if `ora-okf` is installed:
 
 ```bash
 ora-okf --env-file oracle.env --mapping schema-map.yaml --okf-dir out/okf
+```
+
+Or, without installing it -- every example below works the same way, with the command replaced by this prefix:
+
+```bash
+uvx --from "git+https://github.com/s2005/ora-okf.git@v0.0.1" ora-okf     --env-file oracle.env --mapping schema-map.yaml --okf-dir out/okf
 ```
 
 ```text
@@ -209,6 +226,10 @@ git diff --quiet docs/okf || echo "the schema changed"
 ```
 
 One exception: `--include-data` samples rows with `FETCH FIRST n ROWS ONLY` and no `ORDER BY`, because there is no column guaranteed to exist to order by. SQL promises no row order without one, so an unchanged database can yield different sample rows between runs. Do not use an `--include-data` bundle as a byte-comparison baseline; use a structure-only one.
+
+## Claude Code skill
+
+`.claude/skills/ora-okf/` packages the above for an assistant session on a machine that has no checkout of this repository: how to obtain `uv`, how to run the CLI from the git URL, and copy-ready templates for the credentials and mapping files. Claude Code loads it automatically inside a clone; copy the directory into `~/.claude/skills/` to have it available everywhere.
 
 ## Development
 
