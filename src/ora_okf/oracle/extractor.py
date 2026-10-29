@@ -61,14 +61,20 @@ _PROGRAM_TYPE_BY_OBJECT_TYPE = {
 }
 
 
+def _optional_int(value: Any) -> int | None:
+    """Return ``value`` as an int, keeping None (a statistic the optimizer left null)."""
+    return int(value) if value is not None else None
+
+
 class OracleSchemaExtractor:
     """Extracts one Oracle schema into an immutable :class:`SchemaModel`.
 
     Attributes:
         connection: An open ``oracledb.Connection``.
         schema: The schema (owner) to extract, upper-cased by the caller.
-        include_data: When True, row counts and bounded samples are collected
-            for every non-global-temporary table.
+        include_data: When True, row counts, bounded samples and optimizer
+            statistics (read from ``USER_TABLES``) are collected for every
+            non-global-temporary table.
         sample_rows: The maximum number of sample rows per table. A value of
             0 still populates row counts but leaves samples unset.
     """
@@ -162,6 +168,10 @@ class OracleSchemaExtractor:
         constraints_by_table = self._extract_constraints_by_table()
         indexes_by_table = self._extract_indexes_by_table()
 
+        statistics_by_table: dict[str, dict[str, Any]] = {}
+        if self._include_data:
+            statistics_by_table = self._fetch_table_statistics(warn_if_empty=bool(table_rows))
+
         tables = []
         for row in table_rows:
             name = row["table_name"]
@@ -177,6 +187,7 @@ class OracleSchemaExtractor:
                     is_global_temporary=is_global_temporary,
                     on_commit=_ON_COMMIT_BY_DURATION.get(duration) if duration else None,
                     duration=duration,
+                    **({} if is_global_temporary else statistics_by_table.get(name, {})),
                 )
             )
         _LOGGER.debug("Extracted %d tables for schema %s", len(tables), self._schema)
@@ -184,6 +195,38 @@ class OracleSchemaExtractor:
         if self._include_data:
             tables = [self._attach_table_data(table) for table in tables]
         return tuple(tables)
+
+    def _fetch_table_statistics(self, *, warn_if_empty: bool) -> dict[str, dict[str, Any]]:
+        """Return optimizer statistics keyed by table name, skipping never-analysed tables.
+
+        Args:
+            warn_if_empty: Whether an empty query result deserves a warning, i.e.
+                the schema has tables. The check is on the raw rows, so a schema
+                whose tables were all never analysed does not warn.
+
+        Returns:
+            For each analysed table, a dict of the five ``Table`` statistics fields.
+        """
+        rows = fetch_all(self._connection, queries.TABLE_STATISTICS, schema=self._schema)
+        if not rows and warn_if_empty:
+            _LOGGER.warning(
+                "No optimizer statistics were returned for schema %s: they are read from USER_TABLES, which "
+                "needs the login to be the schema owner; tables are exported without them",
+                self._schema,
+            )
+        statistics = {}
+        for row in rows:
+            if row["num_rows"] is None:
+                continue
+            last_analyzed = row["last_analyzed"]
+            statistics[row["table_name"]] = {
+                "num_rows": int(row["num_rows"]),
+                "avg_row_len": _optional_int(row["avg_row_len"]),
+                "blocks": _optional_int(row["blocks"]),
+                "sample_size": _optional_int(row["sample_size"]),
+                "last_analyzed": last_analyzed.isoformat(timespec="seconds") if last_analyzed is not None else None,
+            }
+        return statistics
 
     def _fetch_table_comments(self) -> dict[str, str]:
         """Return table comments keyed by table name."""

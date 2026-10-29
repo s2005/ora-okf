@@ -86,7 +86,7 @@ Every option is named; there are no positional arguments.
 | `--no-schema-qualifier` | off | Render `resource:` values as a bare object name instead of `<SCHEMA>.<OBJECT>`. |
 | `--no-timestamp` | off | Omit the extraction timestamp from concept frontmatter and `log.md`, so an unchanged schema re-exports byte-identically. Use it for a bundle committed to a repository. |
 | `--no-fail-on-leak` | off | Report, rather than fail, when a renamed name survives into the bundle. |
-| `--include-data` | off | Add a row count and a bounded row sample to each table concept. Needs `SELECT` on the tables. |
+| `--include-data` | off | Add a row count, a bounded row sample and the optimizer statistics from `USER_TABLES` to each table concept. Needs `SELECT` on the tables; the statistics need the login to be the exported schema. See [Table statistics](#table-statistics). |
 | `--sample-rows N` | `5` | Maximum sample rows per table. `0` keeps row counts and omits the samples. |
 | `--dry-run` | off | Render and audit in memory, report, write nothing. |
 | `--validate-only` | off | Validate credentials and mapping, then exit. Does not connect. |
@@ -95,6 +95,14 @@ Every option is named; there are no positional arguments.
 | `--version` | — | Print the version and exit. |
 
 Exit codes: `0` success, `1` configuration/connection/extraction/write error, `2` invalid command line, `3` a renamed physical schema name survived into the bundle.
+
+### Table statistics
+
+Under `--include-data`, each table concept also carries five frontmatter keys read in one query from `USER_TABLES`: `num_rows`, `avg_row_len`, `blocks`, `sample_size` and `last_analyzed` (ISO `YYYY-MM-DDTHH:MM:SS`). They are optimizer estimates gathered by `DBMS_STATS`, as fresh as `last_analyzed` says; `row_count` stays the exact `COUNT(*)`. The statistics are written with `--sample-rows 0` as well, and kept when a table's `COUNT(*)` fails.
+
+`USER_TABLES` only describes the login's own tables, so the statistics need the login to be the exported schema. When `--schema` names another schema, the export logs one `WARNING`, writes no statistics, and otherwise succeeds. Global temporary tables and tables that were never analysed get no statistics, and a statistic Oracle leaves null is omitted.
+
+To add the same keys to a bundle that is already exported, run `examples/table_stats/table_stats.sql` as the schema owner and merge its JSON with `examples/table_stats/merge_stats.py`; the usage is in the header of each file.
 
 ## The credentials file
 

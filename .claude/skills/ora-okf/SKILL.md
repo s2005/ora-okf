@@ -190,7 +190,7 @@ Every option is named; there are no positional arguments.
 | `--no-schema-qualifier` | off | Render `resource:` as a bare object name instead of `<SCHEMA>.<OBJECT>`. |
 | `--no-timestamp` | off | Omit the extraction timestamp from frontmatter and `log.md`. |
 | `--no-fail-on-leak` | off | Report, rather than fail, when a renamed name survives into the bundle. |
-| `--include-data` | off | Add a row count and bounded row sample to each table concept. Needs `SELECT` on the tables. |
+| `--include-data` | off | Add a row count, bounded row sample and `USER_TABLES` optimizer statistics (`num_rows`, `avg_row_len`, `blocks`, `sample_size`, `last_analyzed`; estimates, not exact counts) to each table concept. Needs `SELECT` on the tables; the statistics need the login to be the exported schema, otherwise one `WARNING` and none are written. |
 | `--sample-rows N` | `5` | Maximum sample rows per table. `0` keeps counts, omits samples. Negative is a usage error. |
 | `--dry-run` | off | Render and audit in memory, report, write nothing. Mutually exclusive with `--validate-only`. |
 | `--validate-only` | off | Validate credentials and mapping, then exit. Does not connect. |

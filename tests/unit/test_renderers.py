@@ -183,3 +183,54 @@ class TestHeadingLevels:
         content = files["tables/orders.md"]
         assert "## Schema" in content
         assert "### Schema" not in content
+
+
+def _with_statistics(**overrides):
+    """Return the sample model with optimizer statistics set on the ORDERS table."""
+    model = build_sample_model()
+    statistics = {
+        "num_rows": 1500,
+        "avg_row_len": 42,
+        "blocks": 12,
+        "sample_size": 1500,
+        "last_analyzed": "2026-10-01T12:00:05",
+    }
+    statistics.update(overrides)
+    orders = dataclasses.replace(model.tables[0], **statistics)
+    return dataclasses.replace(model, tables=(orders, *model.tables[1:]))
+
+
+class TestTableStatisticsFrontmatter:
+    def test_include_data_renders_the_five_keys_with_exact_values(self):
+        files = _render(_with_statistics(), include_data=True)
+        frontmatter = parse_frontmatter(files["tables/orders.md"])
+        assert frontmatter["num_rows"] == 1500
+        assert frontmatter["avg_row_len"] == 42
+        assert frontmatter["blocks"] == 12
+        assert frontmatter["sample_size"] == 1500
+        assert frontmatter["last_analyzed"] == "2026-10-01T12:00:05"
+
+    def test_without_include_data_no_statistics_are_rendered(self):
+        files = _render(_with_statistics(), include_data=False)
+        frontmatter = parse_frontmatter(files["tables/orders.md"])
+        for key in ("num_rows", "avg_row_len", "blocks", "sample_size", "last_analyzed"):
+            assert key not in frontmatter
+
+    def test_a_none_field_is_omitted(self):
+        files = _render(_with_statistics(sample_size=None), include_data=True)
+        frontmatter = parse_frontmatter(files["tables/orders.md"])
+        assert "sample_size" not in frontmatter
+        assert frontmatter["num_rows"] == 1500
+
+    def test_none_num_rows_renders_no_statistics_keys(self):
+        files = _render(_with_statistics(num_rows=None), include_data=True)
+        frontmatter = parse_frontmatter(files["tables/orders.md"])
+        for key in ("num_rows", "avg_row_len", "blocks", "sample_size", "last_analyzed"):
+            assert key not in frontmatter
+
+    def test_row_count_is_unchanged_and_precedes_num_rows(self):
+        files = _render(_with_statistics(), include_data=True)
+        frontmatter = parse_frontmatter(files["tables/orders.md"])
+        assert frontmatter["row_count"] == 2
+        keys = list(frontmatter)
+        assert keys.index("row_count") < keys.index("num_rows")
