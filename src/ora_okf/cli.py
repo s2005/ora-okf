@@ -124,7 +124,11 @@ def build_parser() -> argparse.ArgumentParser:
     data.add_argument(
         "--include-data",
         action="store_true",
-        help="Query each table for a row count and a bounded sample of rows. Requires SELECT on the tables.",
+        help=(
+            "Query each table for a row count and a bounded sample of rows, and add the optimizer "
+            "statistics (estimates) from USER_TABLES. Requires SELECT on the tables; the statistics "
+            "need the login to be the exported schema."
+        ),
     )
     data.add_argument(
         "--sample-rows",

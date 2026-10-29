@@ -132,7 +132,26 @@ class SampleData:
 
 @dataclass(frozen=True)
 class Table:
-    """A table or global temporary table with its constraints and indexes."""
+    """A table or global temporary table with its constraints and indexes.
+
+    Attributes:
+        name: The table name.
+        comment: The table comment, or an empty string.
+        columns: The table columns in declared order.
+        constraints: The table constraints.
+        indexes: The table indexes.
+        is_global_temporary: True for a global temporary table.
+        on_commit: For a global temporary table, its ``ON COMMIT`` clause.
+        duration: For a global temporary table, Oracle's duration code.
+        row_count: The exact ``COUNT(*)``, set only under ``--include-data``.
+        sample: A bounded row sample, set only under ``--include-data``.
+        num_rows: Optimizer estimate of the row count from ``USER_TABLES``, set
+            only under ``--include-data``. None for a table never analysed.
+        avg_row_len: Optimizer estimate of the average row length in bytes.
+        blocks: Optimizer estimate of the used data blocks.
+        sample_size: Number of rows the optimizer sampled when gathering statistics.
+        last_analyzed: When statistics were gathered, as ISO ``YYYY-MM-DDTHH:MM:SS``.
+    """
 
     name: str
     comment: str = ""
@@ -144,6 +163,11 @@ class Table:
     duration: str | None = None
     row_count: int | None = None
     sample: SampleData | None = None
+    num_rows: int | None = None
+    avg_row_len: int | None = None
+    blocks: int | None = None
+    sample_size: int | None = None
+    last_analyzed: str | None = None
 
 
 @dataclass(frozen=True)

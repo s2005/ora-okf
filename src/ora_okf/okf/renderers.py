@@ -436,6 +436,9 @@ def _render_examples_section(sample: SampleData | None, config: RenderConfig) ->
     return render_table(list(sample.columns), [list(row) for row in sample.rows])
 
 
+_STATISTICS_KEYS = ("num_rows", "avg_row_len", "blocks", "sample_size", "last_analyzed")
+
+
 def _table_frontmatter(table: Table, config: RenderConfig, generated_at: str) -> dict[str, object]:
     """Build Table-specific frontmatter on top of the common fields."""
     description = table.comment or f"Table {table.name}."
@@ -445,6 +448,12 @@ def _table_frontmatter(table: Table, config: RenderConfig, generated_at: str) ->
         frontmatter["primary_key"] = [c.name for c in sorted(primary_key.columns, key=lambda cc: cc.position)]
     if config.include_data and table.row_count is not None:
         frontmatter["row_count"] = table.row_count
+    if config.include_data and table.num_rows is not None:
+        # Optimizer estimates from USER_TABLES; a field the optimizer left null is omitted
+        for key in _STATISTICS_KEYS:
+            value = getattr(table, key)
+            if value is not None:
+                frontmatter[key] = value
     if table.is_global_temporary:
         if table.on_commit:
             frontmatter["on_commit"] = table.on_commit

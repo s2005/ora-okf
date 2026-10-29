@@ -2,8 +2,13 @@
 
 Every statement here is a module-level constant built from ``ALL_*`` views
 (never ``USER_*`` or ``DBA_*``, since the extracting account may read a schema
-it does not own and should never need DBA privileges) and bound with a named
-``:schema`` parameter rather than string interpolation. Oracle cannot bind an
+it does not own and should never need DBA privileges), with one exception:
+``TABLE_STATISTICS`` reads ``USER_TABLES``, because optimizer statistics were
+requested from that view by user decision. Its ``USER = :schema`` guard makes
+it return no rows when the login is not the exported schema, so the login's own
+same-named tables never receive another schema's numbers. Every statement is
+bound with a named ``:schema`` parameter rather than string interpolation.
+Oracle cannot bind an
 object name, so the two row-count/sample-data helpers at the bottom are the
 sole exception: they validate the schema and table identifiers against a
 strict allowlist pattern before building SQL text, which is why the
@@ -36,6 +41,13 @@ WHERE owner = :schema
   AND nested = 'NO'
   AND iot_type IS NULL
 ORDER BY table_name
+"""
+
+TABLE_STATISTICS = """
+SELECT table_name, num_rows, avg_row_len, blocks, sample_size, last_analyzed
+FROM user_tables
+WHERE USER = :schema
+  AND dropped = 'NO'
 """
 
 TABLE_COMMENTS = """
