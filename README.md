@@ -179,7 +179,7 @@ The `unmapped` line is the list to put in `schemas:`. Re-run with the mapping an
 
 ## What is an OKF bundle
 
-A directory of cross-linked Markdown files, one per database object, each with a YAML frontmatter block whose only required field is `type`:
+A directory of cross-linked Markdown files, one per database object. Links are relative to the file that holds them, so they open from any viewer and from any location of the bundle. Each file has a YAML frontmatter block whose only required field is `type`:
 
 ```text
 out/okf/
@@ -227,9 +227,9 @@ primary_key:
 | Name | Type | Columns | Reference | Condition |
 | --- | --- | --- | --- | --- |
 | ORDERS_PK | P | ORDER_ID | | |
-| ORDERS_FK_CUSTOMER | R | CUSTOMER_ID | [CUSTOMERS](/tables/customers.md) | |
+| ORDERS_FK_CUSTOMER | R | CUSTOMER_ID | [CUSTOMERS](customers.md) | |
 
-- `CUSTOMER_ID` references [CUSTOMERS](/tables/customers.md) (`CUSTOMER_ID`) (CASCADE)
+- `CUSTOMER_ID` references [CUSTOMERS](customers.md) (`CUSTOMER_ID`) (CASCADE)
 
 ## Comments
 

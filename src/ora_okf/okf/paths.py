@@ -9,6 +9,7 @@ every disambiguation is recorded for the caller to log.
 
 from __future__ import annotations
 
+import posixpath
 import re
 
 from ..model import (
@@ -139,9 +140,24 @@ class ConceptPathAllocator:
         natural = f"{category}/{concept_filename(name)}"
         return natural if natural not in self._occupied else self._next_free(natural)
 
-    def link_for(self, category: str, name: str) -> str:
-        """Return a bundle-absolute link target such as ``/tables/orders.md``."""
-        return "/" + self.path_for(category, name)
+    def link_for(self, category: str, name: str, from_path: str) -> str:
+        """Return a link target relative to the file that holds the link.
+
+        Leading-slash targets resolve against the workspace root in editors and
+        on GitHub, so every link is written relative to its own file instead.
+
+        Args:
+            category: The target's category subdirectory.
+            name: The target object name.
+            from_path: Bundle path of the file holding the link, such as
+                ``tables/orders.md``.
+
+        Returns:
+            A relative target such as ``customers.md`` (same category) or
+            ``../views/v.md`` (another category).
+        """
+        target = self.path_for(category, name)
+        return posixpath.relpath(target, posixpath.dirname(from_path) or ".")
 
     def collisions(self) -> list[tuple[str, str, str]]:
         """Return ``(category, name, path)`` for every disambiguated allocation."""
