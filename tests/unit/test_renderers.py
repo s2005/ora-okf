@@ -103,6 +103,15 @@ class TestTimestamp:
             assert frontmatter.get("type"), f"{path} has an empty type"
 
 
+class TestRelativeLinks:
+    def test_no_rendered_file_contains_a_root_absolute_link(self):
+        for path, content in _render().items():
+            assert "](/" not in content, f"{path} has a root-absolute link"
+
+    def test_root_index_links_category_folders_relatively(self):
+        assert "](tables/)" in _render()["index.md"]
+
+
 class TestTableConcept:
     def test_primary_key_lists_columns_in_order(self):
         files = _render()
@@ -112,7 +121,7 @@ class TestTableConcept:
     def test_foreign_key_links_to_the_referenced_tables_actual_path(self):
         files = _render()
         content = files["tables/orders.md"]
-        assert "](/tables/customers.md)" in content
+        assert "](customers.md)" in content
 
     def test_comment_column_present_when_a_column_has_a_comment(self):
         files = _render()

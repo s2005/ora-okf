@@ -65,7 +65,18 @@ class TestConceptPathAllocator:
         path = allocator.path_for("tables", "A$B")
         assert path == "tables/a-b-2.md"
 
-    def test_link_for_prefixes_with_slash(self):
+    def test_link_for_is_relative_to_the_holding_file(self):
         allocator = ConceptPathAllocator()
         allocator.allocate("tables", "ORDERS")
-        assert allocator.link_for("tables", "ORDERS") == "/tables/orders.md"
+        assert allocator.link_for("tables", "ORDERS", "tables/customers.md") == "orders.md"
+
+    def test_link_for_other_category_climbs_to_the_sibling_folder(self):
+        allocator = ConceptPathAllocator()
+        allocator.allocate("views", "V_ORDERS")
+        assert allocator.link_for("views", "V_ORDERS", "tables/orders.md") == "../views/v-orders.md"
+
+    def test_link_for_dangling_target_is_relative_and_never_absolute(self):
+        allocator = ConceptPathAllocator()
+        link = allocator.link_for("tables", "MISSING", "tables/orders.md")
+        assert link == "missing.md"
+        assert not link.startswith("/")

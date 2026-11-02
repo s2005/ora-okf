@@ -118,7 +118,7 @@ class ConceptPlacement(NamedTuple):
 # A per-object concept builder. Every builder has the same signature so the
 # dispatch table in ``_render_concept`` can stay a single lookup rather than a
 # long if/elif chain (keeps cyclomatic complexity low).
-_ConceptBuilder = Callable[[object, RenderConfig, ConceptPathAllocator, str], OkfConcept]
+_ConceptBuilder = Callable[[object, RenderConfig, ConceptPathAllocator, str, str], OkfConcept]
 
 
 def _resource(name: str, config: RenderConfig) -> str:
@@ -237,7 +237,7 @@ def render_bundle(model: SchemaModel, config: RenderConfig) -> list[tuple[str, s
 
     results: list[tuple[str, str]] = []
     for path, object_type, obj in placed:
-        concept = _render_concept(object_type, obj, config, allocator, model.generated_at)
+        concept = _render_concept(object_type, obj, config, allocator, model.generated_at, path)
         results.append((path, concept.render()))
 
     results.append(("index.md", render_index(model, config)))
@@ -250,7 +250,7 @@ def render_bundle(model: SchemaModel, config: RenderConfig) -> list[tuple[str, s
 def render_index(model: SchemaModel, config: RenderConfig) -> str:
     """Render the bundle's root ``index.md``."""
     counts = _category_counts(model)
-    rows = [[f"[{category}](/{category}/)", str(count)] for category, count in sorted(counts.items())]
+    rows = [[f"[{category}]({category}/)", str(count)] for category, count in sorted(counts.items())]
     content = join_blocks(
         f"# {config.schema_label}",
         render_table(["Category", "Count"], rows),
@@ -294,10 +294,19 @@ def render_schema_overview(model: SchemaModel, config: RenderConfig) -> OkfConce
 
 
 def _render_concept(
-    object_type: str, obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str
+    object_type: str,
+    obj: object,
+    config: RenderConfig,
+    allocator: ConceptPathAllocator,
+    generated_at: str,
+    path: str,
 ) -> OkfConcept:
-    """Dispatch to the concept builder registered for ``object_type``."""
-    return _BUILDERS[object_type](obj, config, allocator, generated_at)
+    """Dispatch to the concept builder registered for ``object_type``.
+
+    ``path`` is the concept's own bundle path; builders use it to write links
+    relative to the file that holds them.
+    """
+    return _BUILDERS[object_type](obj, config, allocator, generated_at, path)
 
 
 # --------------------------------------------------------------------------
@@ -330,11 +339,14 @@ def _constraint_columns_text(constraint: Constraint) -> str:
     return ", ".join(c.name for c in sorted(constraint.columns, key=lambda cc: cc.position))
 
 
-def _constraint_reference_cell(constraint: Constraint, allocator: ConceptPathAllocator) -> str:
-    """Return the Reference cell: a link to the referenced table, or empty."""
+def _constraint_reference_cell(constraint: Constraint, allocator: ConceptPathAllocator, from_path: str) -> str:
+    """Return the Reference cell: a link to the referenced table, or empty.
+
+    The link is relative to ``from_path``, the bundle path of the holding file.
+    """
     if constraint.constraint_type != "R" or not constraint.referenced_table:
         return ""
-    link = allocator.link_for("tables", constraint.referenced_table)
+    link = allocator.link_for("tables", constraint.referenced_table, from_path)
     return f"[{constraint.referenced_table}]({link})"
 
 
@@ -345,14 +357,16 @@ def _constraint_condition_cell(constraint: Constraint) -> str:
     return inline_code(constraint.search_condition)
 
 
-def _render_constraints_table(constraints: tuple[Constraint, ...], allocator: ConceptPathAllocator) -> str:
+def _render_constraints_table(
+    constraints: tuple[Constraint, ...], allocator: ConceptPathAllocator, from_path: str
+) -> str:
     """Render the Name/Type/Columns/Reference/Condition constraints table."""
     rows = [
         [
             constraint.name,
             constraint.constraint_type,
             _constraint_columns_text(constraint),
-            _constraint_reference_cell(constraint, allocator),
+            _constraint_reference_cell(constraint, allocator, from_path),
             _constraint_condition_cell(constraint),
         ]
         for constraint in sorted(constraints, key=lambda c: c.name)
@@ -361,9 +375,12 @@ def _render_constraints_table(constraints: tuple[Constraint, ...], allocator: Co
 
 
 def _render_fk_bullets(
-    constraints: tuple[Constraint, ...], allocator: ConceptPathAllocator, config: RenderConfig
+    constraints: tuple[Constraint, ...], allocator: ConceptPathAllocator, config: RenderConfig, from_path: str
 ) -> str:
-    """Render one bullet per foreign key, describing what it references."""
+    """Render one bullet per foreign key, describing what it references.
+
+    Links are relative to ``from_path``, the bundle path of the holding file.
+    """
     foreign_keys = [c for c in constraints if c.constraint_type == "R" and c.referenced_table]
     bullets = []
     for fk in sorted(foreign_keys, key=lambda c: c.name):
@@ -372,21 +389,24 @@ def _render_fk_bullets(
         ref_name = fk.referenced_table or ""
         if fk.referenced_owner and fk.referenced_owner != config.schema_label:
             ref_name = f"{fk.referenced_owner}.{ref_name}"
-        link = allocator.link_for("tables", fk.referenced_table or "")
+        link = allocator.link_for("tables", fk.referenced_table or "", from_path)
         delete_rule = fk.delete_rule or "NO ACTION"
         bullets.append(f"- `{columns_text}` references [{ref_name}]({link}) (`{ref_columns_text}`) ({delete_rule})")
     return "\n".join(bullets)
 
 
 def _render_constraints_section(
-    constraints: tuple[Constraint, ...], allocator: ConceptPathAllocator, config: RenderConfig
+    constraints: tuple[Constraint, ...], allocator: ConceptPathAllocator, config: RenderConfig, from_path: str
 ) -> str:
-    """Render the full Constraints section: table plus foreign-key bullets."""
+    """Render the full Constraints section: table plus foreign-key bullets.
+
+    Links are relative to ``from_path``, the bundle path of the holding file.
+    """
     if not constraints:
         return ""
     return join_blocks(
-        _render_constraints_table(constraints, allocator),
-        _render_fk_bullets(constraints, allocator, config),
+        _render_constraints_table(constraints, allocator, from_path),
+        _render_fk_bullets(constraints, allocator, config, from_path),
     )
 
 
@@ -463,14 +483,14 @@ def _table_frontmatter(table: Table, config: RenderConfig, generated_at: str) ->
 
 
 def _build_table_concept(
-    obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str
+    obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str, path: str
 ) -> OkfConcept:
     """Build the concept for one table or global temporary table."""
     table = cast(Table, obj)
     resource = _resource(table.name, config)
     concept = OkfConcept(frontmatter=_table_frontmatter(table, config, generated_at))
     concept.add_section("Schema", _render_columns_table(table.columns))
-    concept.add_section("Constraints", _render_constraints_section(table.constraints, allocator, config))
+    concept.add_section("Constraints", _render_constraints_section(table.constraints, allocator, config, path))
     concept.add_section("Indexes", _render_indexes_section(table.indexes))
     concept.add_section("Comments", _render_table_comments_section(table, resource))
     concept.add_section("Properties", _render_table_properties_section(table))
@@ -484,10 +504,10 @@ def _build_table_concept(
 
 
 def _build_view_concept(
-    obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str
+    obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str, path: str
 ) -> OkfConcept:
     """Build the concept for one view."""
-    del allocator  # views never link out to other concepts
+    del allocator, path  # views never link out to other concepts
     view = cast(View, obj)
     description = view.comment or f"View {view.name}."
     frontmatter = _base_frontmatter(OBJECT_TYPE_VIEW, view, view.name, description, config, generated_at)
@@ -503,10 +523,10 @@ def _build_view_concept(
 
 
 def _build_sequence_concept(
-    obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str
+    obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str, path: str
 ) -> OkfConcept:
     """Build the concept for one sequence."""
-    del allocator  # sequences never link out to other concepts
+    del allocator, path  # sequences never link out to other concepts
     sequence = cast(Sequence, obj)
     description = f"Sequence {sequence.name}."
     frontmatter = _base_frontmatter(OBJECT_TYPE_SEQUENCE, sequence, sequence.name, description, config, generated_at)
@@ -569,10 +589,10 @@ def _render_package_source(program: Program) -> str:
 
 
 def _build_program_concept(
-    obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str
+    obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str, path: str
 ) -> OkfConcept:
     """Build the concept for one procedure, function, package, or trigger."""
-    del allocator  # programs never link out to other concepts
+    del allocator, path  # programs never link out to other concepts
     program = cast(Program, obj)
     object_type = program.program_type
     kind = _KIND_LABELS[object_type]
@@ -593,10 +613,10 @@ def _build_program_concept(
 
 
 def _build_type_concept(
-    obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str
+    obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str, path: str
 ) -> OkfConcept:
     """Build the concept for one user-defined object or collection type."""
-    del allocator  # types never link out to other concepts
+    del allocator, path  # types never link out to other concepts
     object_type = cast(ObjectType, obj)
     description = f"Type {object_type.name}."
     frontmatter = _base_frontmatter(OBJECT_TYPE_TYPE, object_type, object_type.name, description, config, generated_at)
@@ -615,10 +635,10 @@ def _build_type_concept(
 
 
 def _build_synonym_concept(
-    obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str
+    obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str, path: str
 ) -> OkfConcept:
     """Build the concept for one synonym."""
-    del allocator  # the target link is plain text, not a cross-link
+    del allocator, path  # the target link is plain text, not a cross-link
     synonym = cast(Synonym, obj)
     description = f"Synonym {synonym.name}."
     frontmatter = _base_frontmatter(OBJECT_TYPE_SYNONYM, synonym, synonym.name, description, config, generated_at)
@@ -641,10 +661,10 @@ def _build_synonym_concept(
 
 
 def _build_db_link_concept(
-    obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str
+    obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str, path: str
 ) -> OkfConcept:
     """Build the concept for one database link. The password is never rendered."""
-    del allocator  # db links never link out to other concepts
+    del allocator, path  # db links never link out to other concepts
     db_link = cast(DbLink, obj)
     description = f"Database Link {db_link.name}."
     frontmatter = _base_frontmatter(OBJECT_TYPE_DB_LINK, db_link, db_link.name, description, config, generated_at)
@@ -664,10 +684,10 @@ def _build_db_link_concept(
 
 
 def _build_job_concept(
-    obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str
+    obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str, path: str
 ) -> OkfConcept:
     """Build the concept for one DBMS_SCHEDULER job."""
-    del allocator  # jobs never link out to other concepts
+    del allocator, path  # jobs never link out to other concepts
     job = cast(Job, obj)
     description = job.comments or f"Scheduler Job {job.name}."
     frontmatter = _base_frontmatter(OBJECT_TYPE_JOB, job, job.name, description, config, generated_at)
@@ -696,10 +716,10 @@ def _build_job_concept(
 
 
 def _build_mview_concept(
-    obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str
+    obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str, path: str
 ) -> OkfConcept:
     """Build the concept for one materialized view."""
-    del allocator  # master tables are named as plain text, not cross-linked
+    del allocator, path  # master tables are named as plain text, not cross-linked
     mview = cast(MaterializedView, obj)
     description = f"Materialized View {mview.name}."
     frontmatter = _base_frontmatter(OBJECT_TYPE_MVIEW, mview, mview.name, description, config, generated_at)
@@ -726,10 +746,10 @@ def _build_mview_concept(
 
 
 def _build_mview_log_concept(
-    obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str
+    obj: object, config: RenderConfig, allocator: ConceptPathAllocator, generated_at: str, path: str
 ) -> OkfConcept:
     """Build the concept for one materialized view log."""
-    del allocator  # the master table is named as plain text, not cross-linked
+    del allocator, path  # the master table is named as plain text, not cross-linked
     mview_log = cast(MViewLog, obj)
     description = f"Materialized View Log {mview_log.name}."
     frontmatter = _base_frontmatter(OBJECT_TYPE_MVIEW_LOG, mview_log, mview_log.name, description, config, generated_at)
