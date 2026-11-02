@@ -11,15 +11,15 @@ Renaming is not a search-and-replace over the output. It is applied to the extra
 The project is not on PyPI. Install it from the git URL, or run it without installing anything at all:
 
 ```bash
-uvx --from "git+https://github.com/s2005/ora-okf.git@v0.0.1" ora-okf --help
+uvx --from "git+https://github.com/s2005/ora-okf.git@v0.0.3" ora-okf --help
 ```
 
-`uv` fetches a suitable Python, builds the package into a cached ephemeral environment, runs it, and leaves nothing in the working directory -- no clone, no virtualenv to manage. Drop `@v0.0.1` to run the head of `main` instead.
+`uv` fetches a suitable Python, builds the package into a cached ephemeral environment, runs it, and leaves nothing in the working directory -- no clone, no virtualenv to manage. Drop `@v0.0.3` to run the head of `main` instead.
 
 For a command that stays on the PATH:
 
 ```bash
-uv tool install "git+https://github.com/s2005/ora-okf.git@v0.0.1"
+uv tool install "git+https://github.com/s2005/ora-okf.git@v0.0.3"
 ```
 
 From a clone, or for development:
@@ -61,7 +61,7 @@ ora-okf --env-file oracle.env --mapping schema-map.yaml --okf-dir out/okf
 Or, without installing it -- every example below works the same way, with the command replaced by this prefix:
 
 ```bash
-uvx --from "git+https://github.com/s2005/ora-okf.git@v0.0.1" ora-okf     --env-file oracle.env --mapping schema-map.yaml --okf-dir out/okf
+uvx --from "git+https://github.com/s2005/ora-okf.git@v0.0.3" ora-okf     --env-file oracle.env --mapping schema-map.yaml --okf-dir out/okf
 ```
 
 ```text
