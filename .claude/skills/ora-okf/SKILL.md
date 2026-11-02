@@ -11,7 +11,7 @@ physical name survived.
 
 Source: `https://github.com/s2005/ora-okf` (public, MIT). Not published on PyPI, so it is run from the git URL.
 
-**Pinned release: `v0.0.1`.** Every command here pins that tag, so the behaviour described below is the
+**Pinned release: `v0.0.3`.** Every command here pins that tag, so the behaviour described below is the
 behaviour that runs. See [Keeping this skill current](#keeping-this-skill-current) before changing the pin.
 
 ## Prerequisite: uv
@@ -47,14 +47,14 @@ uv --version
 The package is a normal Python distribution, so any installer that reads a git URL works. With pipx:
 
 ```bash
-pipx run --spec "git+https://github.com/s2005/ora-okf.git@v0.0.1" ora-okf --help
+pipx run --spec "git+https://github.com/s2005/ora-okf.git@v0.0.3" ora-okf --help
 ```
 
 Or a throwaway virtualenv on stock Python 3.10+:
 
 ```bash
 python -m venv .venv
-./.venv/bin/pip install "git+https://github.com/s2005/ora-okf.git@v0.0.1"   # Windows: .venv/Scripts/pip
+./.venv/bin/pip install "git+https://github.com/s2005/ora-okf.git@v0.0.3"   # Windows: .venv/Scripts/pip
 ./.venv/bin/ora-okf --help                                          # Windows: .venv/Scripts/ora-okf
 ```
 
@@ -65,17 +65,17 @@ package has to arrive as a pre-built wheel.
 ## Run it
 
 ```bash
-uvx --from "git+https://github.com/s2005/ora-okf.git@v0.0.1" ora-okf --help
+uvx --from "git+https://github.com/s2005/ora-okf.git@v0.0.3" ora-okf --help
 ```
 
-Prefix any invocation below with `uvx --from "git+https://github.com/s2005/ora-okf.git@v0.0.1"`. With `uv`
+Prefix any invocation below with `uvx --from "git+https://github.com/s2005/ora-okf.git@v0.0.3"`. With `uv`
 present (see above), nothing else has to be installed: uvx fetches a suitable Python (3.10+), builds the
 package into a cached ephemeral environment, runs it, and leaves nothing in the working directory. Connections use
 python-oracledb in thin mode, so no Oracle Instant Client is needed either.
 
 Quote the `--from` value: it contains `@`, which some shells and most YAML CI files handle badly unquoted.
 
-Dropping `@v0.0.1` runs the head of `main` instead. That is the right choice only when chasing an unreleased
+Dropping `@v0.0.3` runs the head of `main` instead. That is the right choice only when chasing an unreleased
 fix: what it runs can change under you between two invocations.
 
 ```bash
@@ -87,16 +87,16 @@ That costs about two seconds. Only a full commit SHA is resolved locally from th
 entirely, which is worth knowing for a CI job that runs the command repeatedly:
 
 ```bash
-uvx --from "git+https://github.com/s2005/ora-okf.git@157d5cbb44f159053657e12db89732912755fc6d" ora-okf --version
+uvx --from "git+https://github.com/s2005/ora-okf.git@8a788eb1e19d4f4ab217e0b48f474589507de744" ora-okf --version
 ```
 
-Releases are listed at `https://github.com/s2005/ora-okf/releases`; that SHA is the commit `v0.0.1` points at.
+Releases are listed at `https://github.com/s2005/ora-okf/releases`; that SHA is the commit `v0.0.3` points at.
 Force a rebuild of an already-cached ref with `uvx --refresh-package ora-okf --from ...`.
 
 Optional, for repeated use on one machine - a persistent `ora-okf` command instead of the `--from` prefix:
 
 ```bash
-uv tool install "git+https://github.com/s2005/ora-okf.git@v0.0.1"
+uv tool install "git+https://github.com/s2005/ora-okf.git@v0.0.3"
 uv tool upgrade ora-okf        # only meaningful for an unpinned install
 uv tool uninstall ora-okf
 ```
@@ -156,7 +156,7 @@ and chained renames (`A -> B` alongside `B -> C`) are rejected when the file loa
 ## Workflow
 
 ```bash
-X='uvx --from git+https://github.com/s2005/ora-okf.git@v0.0.1 ora-okf'
+X='uvx --from git+https://github.com/s2005/ora-okf.git@v0.0.3 ora-okf'
 
 # 1. Check credentials and mapping without connecting to anything.
 $X --env-file oracle.env --mapping schema-map.yaml --okf-dir out/okf --validate-only
